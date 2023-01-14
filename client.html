@@ -1,0 +1,243 @@
+<!DOCTYPE html>
+<meta http-equiv="Content-Type" content="text/html; charset=utf-8" />
+<html>
+  <head>
+        <title>Websocket Demo</title>
+        <style>
+            .cell {
+                border: solid 3px #4F5451;
+                font: 40px arial,sans-serif;
+                color:Azure;
+            }
+            .hr-solid-content {
+                color: #454A47;
+                border: 0;
+                font-size: 40px;
+                font-weight: 500;
+                padding: 1em 0;
+                position: relative;
+                letter-spacing: 6px;
+            }
+            .hr-solid-content::before {
+                content: attr(data-content);
+                position: absolute;
+                padding: 0 1ch;
+                line-height: 5px;
+                border: solid #454A47;
+                border-width: 0 99vw;
+                width: fit-content;
+                white-space: nowrap;
+                left: 50%;
+                transform: translateX(-50%);
+            }
+            .button {
+            font-size: 16px;
+            text-transform: uppercase;
+            color: #595F5B;
+            cursor: pointer;
+            border: 3px solid;
+            padding: 0.25em 0.5em;
+            box-shadow: 1px 1px 0px 0px, 1px 1px 0px 0px, 2px 2px 0px 0px, 2px 2px 0px 0px, 2px 2px 0px 0px;
+            position: relative;
+            user-select: none;
+            -webkit-user-select: none;
+            touch-action: manipulation;
+            }
+            .button:active {
+            box-shadow: 0px 0px 0px 0px;
+            top: 5px;
+            left: 5px;
+            }
+            h3{
+                color:#595F5B;
+            }
+            select {
+                background: #fff;
+                color: #595F5B;
+                width: 70px;
+                height: 2.5em;
+                padding: 8px;
+                position: relative;
+                border-radius: 5px;
+                background-position: right 0.5em top 50%, 0 0;
+            }
+        </style>    
+        <script>
+            function log_msg(msg) {
+                console.log(msg);
+            }
+            var s; //socket object for connection
+            let countDown = 4; // 倒數開始時間
+            let lessTime = 30; // 倒數結束時間
+            let playing = false; // 遊戲狀態
+            function doInit() {
+                try {
+                    var host = "ws://localhost:4545/"; //設定socker server的ip:port
+                    /*if(window.location.hostname) {
+                        host = "ws://" + window.location.hostname + ":4545/";
+                    }*/
+
+                    s = new WebSocket(host); //建立socket元件
+                    //設定幾個主要事件
+                    s.onopen = function (e) { log_msg("connected..."); };
+                    s.onclose = function (e) { log_msg("connection closed."); };
+                    s.onerror = function (e) { log_msg("connection error."); };
+                    
+                    //當server送訊息來時
+                    s.onmessage = function (e) { 
+                        //log_msg("message: " + e.data);
+                        //e.data是Socket server送來的訊息
+                        //用, 來切割訊息
+                        strs = e.data.split(',');
+                        //解讀各段訊息的內容
+                        if (strs.length == 1) { // 開始遊戲的訊號
+                            startGame();
+                        } else {
+                            cellID=strs[0]; //格子的ID
+                            cellSign=strs[1]; //使用的顏色
+                            cellNum=parseInt(strs[2]); // 累積防禦值
+                            setCell(cellID,cellSign,cellNum) //改格子的顏色和數值
+                        }
+                    };
+                } catch (ex) {
+                    log_msg("connection exception:" + ex);
+                }     
+                //取得class是 "cell" 的元件
+                const cells = document.querySelectorAll(".cell");
+                //逐一設定onclick事件
+                cells.forEach(function(el) {
+                    el.onclick=function() {
+                        if (countDown == 0) {
+                            id=this.id;
+                            //取得使用的顏色
+                            let mySign = document.getElementById('sign').value; // 使用者顏色
+                            //console.log(mySign)
+                            let count = this.innerHTML; // 格子數值
+                            let color = this.style.backgroundColor; // 格子顏色
+                            //console.log(color)
+                            if (count=="") { //若格子尚未被選
+                                //把格子id跟使用的顏色傳給socket server
+                                s.send(id+","+mySign+","+"1");
+                                temp();
+                            } else if (color == mySign) { // 格子是自己的
+                                s.send(id+","+mySign+","+(parseInt(count)+1).toString());
+                                temp();
+                            } else if (count == 1) { // 格子是別人的且會歸0
+                                s.send(id+","+""+","+"0");
+                                temp();
+                            } else { // 格子是別人的但不會歸0
+                                s.send(id+","+color+","+(parseInt(count)-1).toString());
+                                temp();
+                            }
+                        }
+                    }
+                });
+            }
+            //設定格子的顏色和數值
+            function setCell(id,sign,num) {
+                if (num == 0) { // 歸0改回白色
+                    document.getElementById(id).innerHTML = "";
+                    document.getElementById(id).style.backgroundColor = "White";
+                } else { // 其他則維持顏色並增加或減少數值
+                    document.getElementById(id).innerHTML = num.toString();
+                    document.getElementById(id).style.backgroundColor = sign;
+                }
+            }
+            // 向server發出開始遊戲的訊號
+            function startSignal() {
+                if (playing == false) { // 防止遊戲被中斷
+                    playing = true; // 設為正在執行遊戲
+                    s.send("start");
+                }
+            }
+            // 開始遊戲
+            function startGame() { // 開始前準備
+                for (i = 0; i < 25; i++) { // 格子還原成空白
+                    document.getElementById(i.toString()).innerHTML = "";
+                    document.getElementById(i.toString()).style.backgroundColor = "White";
+                }
+                // 倒數會在一秒後開始,所以設4等於3秒
+                var countingID = setInterval(counting,1000); // 每秒倒數
+                setTimeout(ready, 4000,countingID); // 4秒後開始遊戲
+            }
+            function counting() { // 倒數開始時間
+                document.getElementById("text").innerHTML = "倒數中! "+(countDown-1).toString();
+                countDown -= 1;
+            }
+            function ready(countingID) { // 開始遊戲
+                clearInterval(countingID); // 停止倒數
+                document.getElementById("text").innerHTML = "遊戲開始！ 剩"+lessTime.toString()+"秒結束";
+                var lessID = setInterval(less,1000); // 每秒倒數剩餘時間
+                setTimeout(stop,30000,lessID); // 30秒後結束遊戲
+            }
+            function less() { // 倒數結束時間
+                lessTime -= 1;
+                document.getElementById("text").innerHTML = "遊戲開始！ 剩"+lessTime.toString()+"秒結束";
+            }
+            function stop(lessID) { // 遊戲結束
+                clearInterval(lessID); // 停止倒數
+                countDown = 4; // 重設倒數時間
+                lessTime = 30;
+                document.getElementById("text").innerHTML = "遊戲結束！ 結算成績";
+                result();
+            }
+            function temp() { // 目前比分
+                var red = 0; // 計算紅藍各自佔地
+                var blue = 0;
+                for (i = 0; i < 25; i++) {
+                    thecolor = document.getElementById(i.toString()).style.backgroundColor;
+                    if (thecolor == "salmon") {
+                        red += 1;
+                    } else if (thecolor == "steelblue") {
+                        blue += 1;
+                    }
+                }
+                document.getElementById("temp").innerHTML = "目前比分<br>紅方："+red.toString()+" vs 藍方："+blue.toString();
+            }
+            function result() { // 結算
+                document.getElementById("temp").innerHTML = "";
+                var red = 0; // 計算紅藍各自佔地
+                var blue = 0;
+                for (i = 0; i < 25; i++) {
+                    thecolor = document.getElementById(i.toString()).style.backgroundColor;
+                    if (thecolor == "salmon") {
+                        red += 1;
+                    } else if (thecolor == "steelblue") {
+                        blue += 1;
+                    }
+                }
+                document.getElementById("text").innerHTML = "紅方:"+red.toString()+" vs 藍方:"+blue.toString();
+                if (red > blue) {
+                    document.getElementById("text").innerHTML += "<br>紅方獲勝!";
+                } else if (blue > red) {
+                    document.getElementById("text").innerHTML += "<br>藍方獲勝!";
+                } else {
+                    document.getElementById("text").innerHTML += "<br>雙方平手!";
+                }
+                document.getElementById("text").innerHTML += "<br>按開始按鈕重新開始遊戲...";
+                playing = false; // 重設遊戲狀態
+            }
+        </script>
+    </head>
+<body onload="doInit()" style="background-color: #EBF0E5;">
+    <hr class="hr-solid-content" data-content="搶地盤遊戲">
+    <table align = "center">
+    <td><h3 align="center">選擇你的顏色：
+    </h3></td>
+    <td><select id="sign">
+    <option value = "salmon">紅色</option>
+    <option value="steelblue">藍色</option>
+    </select></td>
+    <td>&nbsp;&nbsp;<input type="button" class="button" value="Start !" onClick="startSignal()"></td>
+    </table>
+    <h3 id="text" align="center"><h3>
+    <h3 id="temp" align="center"><h3>
+    <table width="500px" height="500px" align='center' style="table-layout:fixed;word-break:break-all; border-collapse: collapse;" >
+    <tr align='center' valign="middle" height = "100px"><td class='cell' id='0'></td><td  class='cell' id='5'></td><td  class='cell' id='10'></td><td  class='cell' id='15'></td><td  class='cell' id='20'></td></tr>
+    <tr align='center' valign="middle" height = "100px"><td class='cell' id='1'></td><td  class='cell' id='6'></td><td  class='cell' id='11'></td><td  class='cell' id='16'></td><td  class='cell' id='21'></td></tr>
+    <tr align='center' valign="middle" height = "100px"><td class='cell' id='2'></td><td  class='cell' id='7'></td><td  class='cell' id='12'></td><td  class='cell' id='17'></td><td  class='cell' id='22'></td></tr>
+    <tr align='center' valign="middle" height = "100px"><td class='cell' id='3'></td><td  class='cell' id='8'></td><td  class='cell' id='13'></td><td  class='cell' id='18'></td><td  class='cell' id='23'></td></tr>
+    <tr align='center' valign="middle" height = "100px"><td class='cell' id='4'></td><td  class='cell' id='9'></td><td  class='cell' id='14'></td><td  class='cell' id='19'></td><td  class='cell' id='24'></td></tr>
+    </div>
+</body>
+</html>
