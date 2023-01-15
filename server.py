@@ -1,7 +1,7 @@
 #simple websockets brocaster
 import asyncio
 import websockets
-clients = [] #to store all connected cleints
+clients = [] #to store all connected clients
 
 #handler for socket message activities
 async def handler(websocket, path):
@@ -14,7 +14,7 @@ async def handler(websocket, path):
         if message=='getUsers':
             websock.send("USERS," + len(clients))
         else:
-            await brocast(message) #send message to all clents
+            await brocast(message) #send message to all clients
 
 async def brocast(msg):
     print(msg,' brocasting') #print to console

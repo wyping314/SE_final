@@ -108,7 +108,7 @@
                 cells.forEach(function(el) {
                     el.onclick=function() {
                         if (countDown == 0) {
-                            id=this.id;
+                            id=this.id; // 格子id
                             //取得使用的顏色
                             let mySign = document.getElementById('sign').value; // 使用者顏色
                             //console.log(mySign)
@@ -118,16 +118,19 @@
                             if (count=="") { //若格子尚未被選
                                 //把格子id跟使用的顏色傳給socket server
                                 s.send(id+","+mySign+","+"1");
-                                temp();
-                            } else if (color == mySign) { // 格子是自己的
+                                temp(); // 計算目前比分
+                            } 
+                            else if (color == mySign) { // 格子是自己的
                                 s.send(id+","+mySign+","+(parseInt(count)+1).toString());
-                                temp();
-                            } else if (count == 1) { // 格子是別人的且會歸0
+                                temp(); // 計算目前比分
+                            } 
+                            else if (count == 1) { // 格子是別人的且會歸0
                                 s.send(id+","+""+","+"0");
-                                temp();
-                            } else { // 格子是別人的但不會歸0
+                                temp(); // 計算目前比分
+                            } 
+                            else { // 格子是別人的但不會歸0
                                 s.send(id+","+color+","+(parseInt(count)-1).toString());
-                                temp();
+                                temp(); // 計算目前比分
                             }
                         }
                     }
@@ -146,7 +149,7 @@
             // 向server發出開始遊戲的訊號
             function startSignal() {
                 if (playing == false) { // 防止遊戲被中斷
-                    playing = true; // 設為正在執行遊戲
+                    playing = true; // 遊戲正在進行
                     s.send("start");
                 }
             }
@@ -171,8 +174,8 @@
                 setTimeout(stop,30000,lessID); // 30秒後結束遊戲
             }
             function less() { // 倒數結束時間
-                lessTime -= 1;
                 document.getElementById("text").innerHTML = "遊戲開始！ 剩"+lessTime.toString()+"秒結束";
+                lessTime -= 1;
             }
             function stop(lessID) { // 遊戲結束
                 clearInterval(lessID); // 停止倒數
